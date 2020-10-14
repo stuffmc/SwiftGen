@@ -39,6 +39,19 @@ defaults:
   - &store-artifacts
     store_artifacts:
       path: /tmp/circleci-artifacts
+  - &restore-spm
+    restore_cache:
+      keys:
+        - &spm-cache-key v2-spm-{{ arch }}-{{ checksum "Package.resolved" }}-{{ checksum "Package.swift" }}
+        - v2-spm-{{ arch }}-{{ checksum "Package.resolved" }}
+        - v2-spm-{{ arch }}
+  - &store-spm
+    save_cache:
+      key: *spm-cache-key
+      paths:
+        - .build/checkouts
+        - .build/repositories
+        - .build/workspace-state.json
 
 
 version: 2
@@ -75,9 +88,11 @@ jobs:
       - *restore-gems
       - *install-gems
       - *store-gems
+      - *restore-spm
       - run:
           name: Build with SPM
           command: bundle exec rake spm:test
+      - *store-spm
       - run:
           name: Verify installation
           command: bundle exec rake cli:install[./standalone,./standalone/frameworks,./standalone/stencils]
