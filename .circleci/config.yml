@@ -1,5 +1,8 @@
+orbs:
+  bundle-install: toshimaru/bundle-install@0.3.1
+
 defaults:
-  - &default-config
+  - &macos-config
     parallelism: 1
     environment:
       CIRCLE_ARTIFACTS: /tmp/circleci-artifacts
@@ -19,23 +22,6 @@ defaults:
         echo "source /usr/local/share/chruby/chruby.sh" >> ~/.bash_profile;
         echo "source /usr/local/share/chruby/auto.sh" >> ~/.bash_profile;
         chruby
-  - &restore-gems
-    restore_cache:
-      keys:
-        - gems-{{ checksum "Gemfile.lock" }}
-        - gems-
-  - &install-gems
-    run:
-      name: Bundle install
-      command: bundle check || bundle install
-      environment:
-        BUNDLE_JOBS: 4
-        BUNDLE_RETRY: 3
-  - &store-gems
-    save_cache:
-      key: gems-{{ checksum "Gemfile.lock" }}
-      paths:
-        - vendor/bundle
   - &store-artifacts
     store_artifacts:
       path: /tmp/circleci-artifacts
@@ -54,17 +40,16 @@ defaults:
         - .build/workspace-state.json
 
 
-version: 2
+version: 2.1
 jobs:
   lint:
-    <<: *default-config
+    <<: *macos-config
     steps:
       - *prepare-storage
       - checkout
       - *enable-ruby-auto-switching
-      - *restore-gems
-      - *install-gems
-      - *store-gems
+      - bundle-install/bundle-install:
+          cache_key_prefix: v1-macos
       - run:
           name: Lint source code
           command: bundle exec rake lint:code
@@ -80,14 +65,13 @@ jobs:
       - *store-artifacts
 
   build-and-test:
-    <<: *default-config
+    <<: *macos-config
     steps:
       - *prepare-storage
       - checkout
       - *enable-ruby-auto-switching
-      - *restore-gems
-      - *install-gems
-      - *store-gems
+      - bundle-install/bundle-install:
+          cache_key_prefix: v1-macos
       - *restore-spm
       - run:
           name: Build with SPM
@@ -104,28 +88,26 @@ jobs:
       - *store-artifacts
 
   compile-output:
-    <<: *default-config
+    <<: *macos-config
     steps:
       - *prepare-storage
       - checkout
       - *enable-ruby-auto-switching
-      - *restore-gems
-      - *install-gems
-      - *store-gems
+      - bundle-install/bundle-install:
+          cache_key_prefix: v1-macos
       - run:
           name: Compile generated code
           command: bundle exec rake output:compile
       - *store-artifacts
 
   check-deploy:
-    <<: *default-config
+    <<: *macos-config
     steps:
       - *prepare-storage
       - checkout
       - *enable-ruby-auto-switching
-      - *restore-gems
-      - *install-gems
-      - *store-gems
+      - bundle-install/bundle-install:
+          cache_key_prefix: v1-macos
       - restore_cache:
           keys:
             - cocoapods-{{ checksum "Podfile.lock" }}
@@ -141,7 +123,6 @@ jobs:
 
 
 workflows:
-  version: 2
   lint-buildandtest-compileoutput-checkdeploy:
     jobs:
       - check-deploy
